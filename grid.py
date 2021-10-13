@@ -8,7 +8,7 @@ class Node:
         self.x = x
         self.y = y
     def __repr__(self):
-        return f"[{self.x}, {self.y}]" 
+        return f"[{round(self.x, 2)}, {round(self.y, 2)}]" 
 
 class Element:
 

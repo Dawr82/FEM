@@ -1,4 +1,6 @@
 from grid import *
+from integration import *
+import pprint
 
 if __name__ == '__main__':
 
@@ -27,3 +29,15 @@ if __name__ == '__main__':
     print(grid.create_nodes())
     print(grid.create_elements())
     print(grid)
+
+    print("\n\nIntegrals:\n")
+
+    f1 = lambda x : 5*x**2 + 3*x + 6
+    f1_1N = gaussian_integration1D(f1, 1)
+    f1_2N = gaussian_integration1D(f1, 2) 
+    print(f1_1N, f1_2N)
+
+    f2 = lambda x, y : 5 * x**2 * y**2 + 3*x*y + 6
+    f2_1N = gaussian_integration2D(f2, 1)
+    f2_2N = gaussian_integration2D(f2, 2)
+    print(f2_1N, f2_2N)
