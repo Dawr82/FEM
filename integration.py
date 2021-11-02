@@ -1,38 +1,33 @@
 from math import sqrt
+from inspect import signature
 
+class IntegrationError(Exception):
+    pass
 
-# For purposes of Gaussian integration.
-SCHEMA = {
-    1 :  [[1, 1],[-1/sqrt(3), 1/sqrt(3)]],
-    2 :  [[5/9, 8/9, 5/9],[-sqrt(3/5), 0, sqrt(3/5)]],
-    3 :  [[0.347855, 0.652145, 0.347855, 0.652145],[-0.861136, -0.339981, 0.339981, 0.0861136]],
-}
+SCHEMA = [
+    [[1, 1],[-1/sqrt(3), 1/sqrt(3)]],                                                            # 2 w
+    [[5/9, 8/9, 5/9],[-sqrt(3/5), 0, sqrt(3/5)]],                                                # 3 w
+    [[0.347855, 0.652145, 0.652145,  0.347855],[-0.861136, -0.339981, 0.339981, 0.861136]],       # 4 w
+]
 
-
-# Gaussian integration - 1D, normalized (x from -1 to 1) coordinate system.
-def gaussian_integration1D(f, N):
+def integral_gauss(f, N):
+    n_vars = len(signature(f).parameters)
     result = 0
 
     try:
-        for i in range(N + 1):
-            result += f(SCHEMA[N][1][i]) * SCHEMA[N][0][i]
-    except KeyError:
-        print("No data in SCHEMA for that N.")
-   
-    return result
-
-
-# Gaussian integration - 2D, normalized (x from -1 to 1) coordinate system.
-def gaussian_integration2D(f, N):
-    result = 0
-
-    try:
-        for i in range(N + 1):
-            for j in range(N + 1):
-                result += f(SCHEMA[N][1][i], SCHEMA[N][1][j]) * SCHEMA[N][0][i] * SCHEMA[N][0][j]
-    except KeyError:
-        print("No data in SCHEMA for that N.")
+        if n_vars == 1:
+            for i in range(N + 2):
+                result += f(SCHEMA[N][1][i]) * SCHEMA[N][0][i]
+        elif n_vars == 2:
+            for i in range(N + 2):
+                for j in range(N + 2):
+                    result += f(SCHEMA[N][1][i], SCHEMA[N][1][j]) * SCHEMA[N][0][i] * SCHEMA[N][0][j]
+        else:
+            raise IntegrationError("Function has to have 1 or 2 variables.")
+    except IndexError:
+        print("SCHEMA doesn't support that N.")
 
     return result
+
 
 
