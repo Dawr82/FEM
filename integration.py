@@ -1,6 +1,7 @@
 from math import sqrt
 from inspect import signature
 
+
 class IntegrationError(Exception):
     pass
 

@@ -16,11 +16,8 @@ if __name__ == '__main__':
 
     # Grid
     grid = Grid(0.2, 0.1, 5, 4)
-    print(grid.create_nodes())
-    print(grid.create_elements())
-    print(str(grid.nodes))
-    print(str(grid.elements))
-  
+    print(grid)
+
     # Integrals
     print("\n\nIntegrals:\n")
 
