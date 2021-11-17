@@ -6,6 +6,8 @@ if __name__ == '__main__':
 
     # Testing classes from grid.py 
 
+    print("=" * 50)
+
     # Node
     node = Node(10, 20)
     print(node)

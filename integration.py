@@ -1,5 +1,6 @@
 from math import sqrt
 from inspect import signature
+import numpy as np
 
 
 class IntegrationError(Exception):
@@ -10,6 +11,33 @@ SCHEMA = [
     [[5/9, 8/9, 5/9],[-sqrt(3/5), 0, sqrt(3/5)]],                                                # 3 w
     [[0.347855, 0.652145, 0.652145,  0.347855],[-0.861136, -0.339981, 0.339981, 0.861136]],      # 4 w
 ]
+
+
+SCHEMA_BC_2W = [
+    [(-1/sqrt(3), -1), (1/sqrt(3), -1)],  # 1 ściana      
+    [(1, -1/sqrt(3)), (1, 1/sqrt(3))],    # 2 ściana
+    [(1/sqrt(3), 1), (-1/sqrt(3), 1)],    # 3 ściana
+    [(-1, 1/sqrt(3)), (-1, -1/sqrt(3))],  # 4 ściana
+]
+
+N = [
+    lambda ksi, mu : 0.25 * (1 - ksi) * (1 - mu),
+    lambda ksi, mu : 0.25 * (1 + ksi) * (1 - mu),
+    lambda ksi, mu : 0.25 * (1 + ksi) * (1 + mu),
+    lambda ksi, mu : 0.25 * (1 - ksi) * (1 + mu),
+]
+
+N_SCHEMA_BC_2W = np.zeros((4, 2, 4))
+
+for i, wall in enumerate(SCHEMA_BC_2W):
+    for j, point in enumerate(wall):
+        if i == len(SCHEMA_BC_2W) - 1:
+            N_SCHEMA_BC_2W[i, j, i] = N[i](*point)
+            N_SCHEMA_BC_2W[i, j, 0] = N[0](*point)
+        else:
+            N_SCHEMA_BC_2W[i, j, i] = N[i](*point)
+            N_SCHEMA_BC_2W[i, j, i + 1] = N[i + 1](*point)
+
 
 def integral_gauss(f, N):
     n_vars = len(signature(f).parameters)
