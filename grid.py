@@ -1,13 +1,15 @@
 from jacob import element4_2D
-from integration import N_SCHEMA_BC_2W
+from integration import *
+from globals import *
 import numpy as np
 import itertools
 
 np.set_printoptions(linewidth=200)
 
-K = 30
-ALFA = 25
-T_AMBIENT = 1200
+
+def trunc(values, decs=0):
+    return np.trunc(values*10**decs)/(10**decs)
+
 
 def J_matrix_all(nodes):
     jacobians = np.zeros((4, 2, 2))
@@ -60,14 +62,23 @@ def P_vector(J, wall_id):
         P += point.reshape(4, 1)
     P *= (T_AMBIENT * ALFA * np.linalg.det(J))
     return P
+
+
+def C_matrix(J):
+    C_mat = np.zeros((4, 4))
+    for N in trunc(N_SCHEMA_2W, 4):
+        C_mat += N * N[np.newaxis].T
+    C_mat*= (RO * C * np.linalg.det(J))
+    return C_mat
     
 
 class Node:
 
-    def __init__(self, x, y, bc=0):
+    def __init__(self, x, y, t0, bc=0):
         self.x = x
         self.y = y
         self.bc = bc
+        self.t0 = t0
 
     def __repr__(self):
         return f"[{self.x: .3f}, {self.y: .3f}, BC = {self.bc}]" 
@@ -75,7 +86,7 @@ class Node:
 
 class Element:
 
-    def __init__(self, ids, jacobians=None, H_matrix=None, H_BC_matrices=None, H_BC_matrix=None, P_vectors=None, P_vector=None):
+    def __init__(self, ids, jacobians=None, H_matrix=None, H_BC_matrices=None, H_BC_matrix=None, P_vectors=None, P_vector=None, C_matrix=None):
         self.ids = ids 
         self.jacobians = jacobians
         self.H_matrix = H_matrix
@@ -83,11 +94,12 @@ class Element:
         self.H_BC_matrix = H_BC_matrix
         self.P_vectors = P_vectors
         self.P_vector = P_vector
+        self.C_matrix = C_matrix
 
 
     def __repr__(self):
         return 30 * "=" + f"\n\n{self.ids}\n\nJ matrix:\n\n{self.jacobians}\n\nH matrix:\n\n{self.H_matrix}\n\n \
-H_BC matrices\n\n{self.H_BC_matrices}\n\nH_BC_matrix\n\n{self.H_BC_matrix}\n\nP_vectors\n\n{self.P_vectors}\n\nP_vector\n\n{self.P_vector}\n\n"
+H_BC_matrix\n\n{self.H_BC_matrix}\n\P_vector\n\n{self.P_vector}\n\nC_matrix\n\n{self.C_matrix}\n\n"
 
 
     def __len__(self):
@@ -96,13 +108,14 @@ H_BC matrices\n\n{self.H_BC_matrices}\n\nH_BC_matrix\n\n{self.H_BC_matrix}\n\nP_
   
 class Grid:
 
-    def __init__(self, height, breadth, num_nodes_height, num_nodes_breadth):
+    def __init__(self, height, breadth, num_nodes_height, num_nodes_breadth, temp_start):
         self.h = height
         self.b = breadth
         self.n_b = num_nodes_breadth
         self.n_h = num_nodes_height
         self.n_n = self.n_h * self.n_b
         self.n_e = (self.n_h - 1) * (self.n_b - 1)
+        self.t0 = temp_start
         self.nodes = self.create_nodes()
         self.elements = self.create_elements()
   
@@ -110,9 +123,11 @@ class Grid:
         self.calculate_H_matrices()
         self.apply_boundary_conditions()
         self.update_H_matrices()
+        self.calculate_C_matrices()
 
         self.H_global = self.aggregate_H()
         self.P_global = self.aggregate_P()
+        self.C_global = self.aggregate_C()
 
 
     def set_boundary_condition(self, nodes):
@@ -122,7 +137,7 @@ class Grid:
 
 
     def create_nodes(self):
-        nodes = [Node(j * (self.b / (self.n_b - 1)), i * (self.h / (self.n_h - 1))) for i in range(self.n_h) for j in range(self.n_b)]
+        nodes = [Node(j * (self.b / (self.n_b - 1)), i * (self.h / (self.n_h - 1)), self.t0) for i in range(self.n_h) for j in range(self.n_b)]
         self.set_boundary_condition(nodes)
         return nodes
 
@@ -190,13 +205,29 @@ class Grid:
                 aggregated[g_i] += element.P_vector[l_i]
         return aggregated
 
+
+    def aggregate_C(self):
+        aggregated = np.zeros((self.n_n, self.n_n))
+        for element in self.elements:
+            local_i = list(itertools.product([0, 1, 2, 3], [0, 1, 2, 3]))
+            global_i = list(itertools.product(element.ids, element.ids))
+            for (l_i, l_j), (g_i, g_j) in zip(local_i, global_i):
+                aggregated[g_i, g_j] += element.C_matrix[l_i, l_j]
+        return aggregated
+
+
+    def calculate_C_matrices(self):
+        for element in self.elements:
+            element.C_matrix = C_matrix(element.jacobians[0])
+
    
     def format_elements(self):
         return '\n'.join([str(element) for element in self.elements])
     
 
     def __repr__(self):
-        return 30 * "=" + f"""\nPrinting info about this grid\n\nNodes:\n{str(self.nodes)}\n\nElements:\n{self.format_elements()}\n\nH global:\n{self.H_global.round(3)}\n\nP global:\n{self.P_global.round(3)}\n""" + 30 * "=" 
+        return 30 * "=" + f"""\nPrinting info about this grid\n\nNodes:\n{str(self.nodes)}\n\nElements:\n{self.format_elements()}\n\n \
+        H global:\n{self.H_global.round(3)}\n\nP global:\n{self.P_global.round(3)}\n\nC global:\n{self.C_global.round(3)}\n\n""" + 30 * "=" 
 
 
 

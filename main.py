@@ -1,5 +1,6 @@
 from grid import *
 from integration import *
+from globals import *
 
 
 if __name__ == '__main__':
@@ -9,7 +10,7 @@ if __name__ == '__main__':
     print("=" * 50)
 
     # Node
-    node = Node(10, 20)
+    node = Node(10, 20, T_START)
     print(node)
 
     # Element
@@ -17,7 +18,7 @@ if __name__ == '__main__':
     print(element)
 
     # Grid
-    grid = Grid(0.2, 0.1, 5, 4)
+    grid = Grid(H, B, N_H, N_B, T_START)
     print(grid)
 
     # Integrals
@@ -34,3 +35,5 @@ if __name__ == '__main__':
     f2_2N = integral_gauss(f2, 1)
     f2_3N = integral_gauss(f2, 2)
     print(f2_1N, f2_2N, f2_3N)
+
+    print("\n" * 3, N_SCHEMA_2W)

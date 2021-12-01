@@ -1,6 +1,7 @@
 from math import sqrt
 from inspect import signature
 import numpy as np
+import itertools
 
 
 class IntegrationError(Exception):
@@ -26,6 +27,15 @@ N = [
     lambda ksi, mu : 0.25 * (1 + ksi) * (1 + mu),
     lambda ksi, mu : 0.25 * (1 - ksi) * (1 + mu),
 ]
+
+
+N_SCHEMA_2W = np.zeros((4, 4))
+
+
+for i, (ksi, mu) in enumerate(list(itertools.product(SCHEMA[0][1], SCHEMA[0][1]))):
+    for j, n in enumerate(N):
+        N_SCHEMA_2W[i][j] = n(ksi, mu)
+
 
 N_SCHEMA_BC_2W = np.zeros((4, 2, 4))
 
