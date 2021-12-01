@@ -1,9 +1,13 @@
 from jacob import element4_2D
 from integration import N_SCHEMA_BC_2W
 import numpy as np
+import itertools
+
+np.set_printoptions(linewidth=200)
 
 K = 30
 ALFA = 25
+T_AMBIENT = 1200
 
 def J_matrix_all(nodes):
     jacobians = np.zeros((4, 2, 2))
@@ -49,6 +53,15 @@ def H_matrix_BC(J, wall_id):
     return H_BC
 
 
+def P_vector(J, wall_id):
+    P = np.zeros((4, 1))
+    for point in N_SCHEMA_BC_2W[wall_id]:
+        print(point, point.shape)
+        P += point.reshape(4, 1)
+    P *= (T_AMBIENT * ALFA * np.linalg.det(J))
+    return P
+    
+
 class Node:
 
     def __init__(self, x, y, bc=0):
@@ -62,17 +75,19 @@ class Node:
 
 class Element:
 
-    def __init__(self, ids, jacobians=None, H_matrix=None, H_BC_matrices=None, H_BC_matrix=None):
+    def __init__(self, ids, jacobians=None, H_matrix=None, H_BC_matrices=None, H_BC_matrix=None, P_vectors=None, P_vector=None):
         self.ids = ids 
         self.jacobians = jacobians
         self.H_matrix = H_matrix
         self.H_BC_matrices = H_BC_matrices
         self.H_BC_matrix = H_BC_matrix
+        self.P_vectors = P_vectors
+        self.P_vector = P_vector
 
 
     def __repr__(self):
         return 30 * "=" + f"\n\n{self.ids}\n\nJ matrix:\n\n{self.jacobians}\n\nH matrix:\n\n{self.H_matrix}\n\n \
-H_BC matrices\n\n{self.H_BC_matrices}\n\nH_BC_matrix\n\n{self.H_BC_matrix}\n\n"
+H_BC matrices\n\n{self.H_BC_matrices}\n\nH_BC_matrix\n\n{self.H_BC_matrix}\n\nP_vectors\n\n{self.P_vectors}\n\nP_vector\n\n{self.P_vector}\n\n"
 
 
     def __len__(self):
@@ -94,12 +109,15 @@ class Grid:
         self.calculate_jacobians()
         self.calculate_H_matrices()
         self.apply_boundary_conditions()
-        #self.update_H_matrices()
+        self.update_H_matrices()
+
+        self.H_global = self.aggregate_H()
+        self.P_global = self.aggregate_P()
 
 
     def set_boundary_condition(self, nodes):
         for node in nodes:
-            if any((not node.x, not node.y, node.x == self.b, node.y == self.h)):
+            if any((node.x == 0, node.y == 0, node.x == self.b, node.y == self.h)):
                 node.bc = 1
 
 
@@ -133,31 +151,53 @@ class Grid:
         else:
             end = start + 1
 
-        return self.nodes[element.ids[start]].bc and self.nodes[element.ids[end] - 1].bc
+        return self.nodes[element.ids[start]].bc and self.nodes[element.ids[end]].bc
 
 
     def apply_boundary_conditions(self):
         for element in self.elements: 
             H_BC_matrices = np.zeros((4, 4, 4))
+            P_vectors = np.zeros((4, 4, 1))
             for wall_id in range(len(element)):
                 if self.is_boundary_condition(element, wall_id):
                     H_BC_matrices[wall_id] = H_matrix_BC(element.jacobians[0], wall_id)
+                    P_vectors[wall_id] = P_vector(element.jacobians[0], wall_id)
             element.H_BC_matrices = H_BC_matrices
             element.H_BC_matrix = H_BC_matrices.sum(axis=0)
-
+            element.P_vectors = P_vectors
+            element.P_vector = P_vectors.sum(axis=0)
 
 
     def update_H_matrices(self):
         for element in self.elements:
             element.H_matrix += element.H_BC_matrix
-           
+
+
+    def aggregate_H(self):
+        aggregated = np.zeros((self.n_n, self.n_n))
+        for element in self.elements:
+            local_i = list(itertools.product([0, 1, 2, 3], [0, 1, 2, 3]))
+            global_i = list(itertools.product(element.ids, element.ids))
+            for (l_i, l_j), (g_i, g_j) in zip(local_i, global_i):
+                aggregated[g_i, g_j] += element.H_matrix[l_i, l_j]
+        return aggregated
+
+
+    def aggregate_P(self):
+        aggregated = np.zeros((self.n_n, 1))
+        for element in self.elements:
+            for l_i, g_i in zip(range(4), element.ids):
+                aggregated[g_i] += element.P_vector[l_i]
+        return aggregated
+
    
     def format_elements(self):
         return '\n'.join([str(element) for element in self.elements])
     
 
     def __repr__(self):
-        return 30 * "=" + f"""\nPrinting info about this grid\n\nNodes:\n{str(self.nodes)}\n\nElements:\n{self.format_elements()}\n""" + 30 * "="
+        return 30 * "=" + f"""\nPrinting info about this grid\n\nNodes:\n{str(self.nodes)}\n\nElements:\n{self.format_elements()}\n\nH global:\n{self.H_global.round(3)}\n\nP global:\n{self.P_global.round(3)}\n""" + 30 * "=" 
+
 
 
 
