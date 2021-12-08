@@ -47,26 +47,26 @@ def H_matrix(J):
     return H_matrix
 
 
-def H_matrix_BC(J, wall_id):
+def H_matrix_BC(L, wall_id):
     H_BC = np.zeros((4, 4)) 
     for point in N_SCHEMA_BC_2W[wall_id]:
         H_BC += (point * point[np.newaxis].T)
-    H_BC *= (ALFA * np.linalg.det(J))
+    H_BC *= (ALFA * 0.05 * L)
     return H_BC
 
 
-def P_vector(J, wall_id):
+def P_vector(L, wall_id):
     P = np.zeros((4, 1))
     for point in N_SCHEMA_BC_2W[wall_id]:
         print(point, point.shape)
         P += point.reshape(4, 1)
-    P *= (T_AMBIENT * ALFA * np.linalg.det(J))
+    P *= (T_AMBIENT * ALFA * 0.5 * L)
     return P
 
 
 def C_matrix(J):
     C_mat = np.zeros((4, 4))
-    for N in trunc(N_SCHEMA_2W, 4):
+    for i, N in enumerate(trunc(N_SCHEMA_2W, 4)):
         C_mat += N * N[np.newaxis].T
     C_mat*= (RO * C * np.linalg.det(J))
     return C_mat
@@ -113,6 +113,8 @@ class Grid:
         self.b = breadth
         self.n_b = num_nodes_breadth
         self.n_h = num_nodes_height
+        self.l_b = self.b / (self.n_b - 1)   # Wysokosc elementu
+        self.l_h = self.h / (self.n_h - 1)   # Szerokosc elementu
         self.n_n = self.n_h * self.n_b
         self.n_e = (self.n_h - 1) * (self.n_b - 1)
         self.t0 = temp_start
@@ -175,8 +177,12 @@ class Grid:
             P_vectors = np.zeros((4, 4, 1))
             for wall_id in range(len(element)):
                 if self.is_boundary_condition(element, wall_id):
-                    H_BC_matrices[wall_id] = H_matrix_BC(element.jacobians[0], wall_id)
-                    P_vectors[wall_id] = P_vector(element.jacobians[0], wall_id)
+                    if wall_id in(0, 2):
+                        H_BC_matrices[wall_id] = H_matrix_BC(self.l_b, wall_id)
+                        P_vectors[wall_id] = P_vector(self.l_b, wall_id)
+                    elif wall_id in (1, 3):
+                        H_BC_matrices[wall_id] = H_matrix_BC(self.l_h, wall_id)
+                        P_vectors[wall_id] = P_vector(self.l_h, wall_id)
             element.H_BC_matrices = H_BC_matrices
             element.H_BC_matrix = H_BC_matrices.sum(axis=0)
             element.P_vectors = P_vectors
@@ -223,7 +229,24 @@ class Grid:
    
     def format_elements(self):
         return '\n'.join([str(element) for element in self.elements])
+
     
+    def calculate_temperatures(self, dT, n_steps):
+        H = self.H_global
+        P = self.P_global
+        C = self.C_global
+        T0 = np.full(P.shape, self.t0)
+
+        X = H + C/dT
+        Y = C/dT
+
+        for _ in range(n_steps):
+            T0 = np.linalg.inv(X) @ (Y @ T0 + P)
+            # H = X
+            # P += Y @ T0
+            
+        return (T0, T0.min(), T0.max())
+
 
     def __repr__(self):
         return 30 * "=" + f"""\nPrinting info about this grid\n\nNodes:\n{str(self.nodes)}\n\nElements:\n{self.format_elements()}\n\n \

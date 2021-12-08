@@ -30,11 +30,19 @@ N = [
 
 
 N_SCHEMA_2W = np.zeros((4, 4))
+N_SCHEMA_3W = np.zeros((9, 4))
 
+WEIGHT_SCHEMA_2W = np.array(list(itertools.product(SCHEMA[0][0], SCHEMA[0][0])))
+WEIGHT_SCHEMA_3W = np.array(list(itertools.product(SCHEMA[1][0], SCHEMA[1][0])))
 
 for i, (ksi, mu) in enumerate(list(itertools.product(SCHEMA[0][1], SCHEMA[0][1]))):
     for j, n in enumerate(N):
         N_SCHEMA_2W[i][j] = n(ksi, mu)
+
+
+for i, (ksi, mu) in enumerate(list(itertools.product(SCHEMA[1][1], SCHEMA[1][1]))):
+    for j, n in enumerate(N):
+        N_SCHEMA_3W[i][j] = n(ksi, mu)
 
 
 N_SCHEMA_BC_2W = np.zeros((4, 2, 4))

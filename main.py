@@ -20,13 +20,18 @@ if __name__ == '__main__':
     # Grid
     grid = Grid(H, B, N_H, N_B, T_START)
     print(grid)
+    
+    t0, min, max = grid.calculate_temperatures(TM_STEP, N_STEPS)
+
+    print(f"Temperature after {N_STEPS * TM_STEP}s   ---->   ", t0)
+    print(f"Tmin   ---->   {min}   Tmax   ---->    {max}")
 
     # Integrals
     print("\n\nIntegrals:\n")
 
     f1 = lambda x : 5*x**2 + 3*x + 6
     f1_1N = integral_gauss(f1, 0)
-    f1_2N = integral_gauss(f1, 1) 
+    f1_2N = integral_gauss(f1, 1)
     f1_3N = integral_gauss(f1, 2)
     print(f1_1N, f1_2N, f1_3N)
 
