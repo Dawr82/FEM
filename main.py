@@ -1,44 +1,27 @@
-from grid import *
-from integration import *
+from grid import Grid
 from globals import *
+import sys
+
+
+def print_delimiter():
+    print("=" * 30)
+
+
+def main():
+    try:
+        schema = int(sys.argv[1])
+        if schema in (2, 3):
+            SCHEMA_N = schema - 2
+            print(f"Setting intergation schema... SCHEMA = {SCHEMA_N + 2}")
+        else:
+            print("Invalid schema. Only schemas for 2 and 3 integration points are supported for now. Using default schema (N = 2)")
+    except IndexError:
+        print("Integration schema not specified. Using default schema (N = 2).")
+
+    grid = Grid(H, B, N_H, N_B, T_START)    
+    for t0, min, max, i in grid.calculate_temperatures(TM_STEP, N_STEPS):
+        print(f"After {i * TM_STEP}s: Tmin={min: .3f} Tmax={max: .3f}")
 
 
 if __name__ == '__main__':
-
-    # Testing classes from grid.py 
-
-    print("=" * 50)
-
-    # Node
-    node = Node(10, 20, T_START)
-    print(node)
-
-    # Element
-    element = Element((3,4,1,2))
-    print(element)
-
-    # Grid
-    grid = Grid(H, B, N_H, N_B, T_START)
-    print(grid)
-    
-    t0, min, max = grid.calculate_temperatures(TM_STEP, N_STEPS)
-
-    print(f"Temperature after {N_STEPS * TM_STEP}s   ---->   ", t0)
-    print(f"Tmin   ---->   {min}   Tmax   ---->    {max}")
-
-    # Integrals
-    print("\n\nIntegrals:\n")
-
-    f1 = lambda x : 5*x**2 + 3*x + 6
-    f1_1N = integral_gauss(f1, 0)
-    f1_2N = integral_gauss(f1, 1)
-    f1_3N = integral_gauss(f1, 2)
-    print(f1_1N, f1_2N, f1_3N)
-
-    f2 = lambda x, y : 5 * x**2 * y**2 + 3*x*y + 6
-    f2_1N = integral_gauss(f2, 0)
-    f2_2N = integral_gauss(f2, 1)
-    f2_3N = integral_gauss(f2, 2)
-    print(f2_1N, f2_2N, f2_3N)
-
-    print("\n" * 3, N_SCHEMA_2W)
+    main()

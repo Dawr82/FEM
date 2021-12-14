@@ -7,57 +7,14 @@ import itertools
 class IntegrationError(Exception):
     pass
 
+
 SCHEMA = [
-    [[1, 1],[-1/sqrt(3), 1/sqrt(3)]],                                                            # 2 w
-    [[5/9, 8/9, 5/9],[-sqrt(3/5), 0, sqrt(3/5)]],                                                # 3 w
-    [[0.347855, 0.652145, 0.652145,  0.347855],[-0.861136, -0.339981, 0.339981, 0.861136]],      # 4 w
+    [[1, 1],[-1/sqrt(3), 1/sqrt(3)]],                                                       
+    [[5/9, 8/9, 5/9],[-sqrt(3/5), 0, sqrt(3/5)]],                                             
 ]
 
 
-SCHEMA_BC_2W = [
-    [(-1/sqrt(3), -1), (1/sqrt(3), -1)],  # 1 ściana      
-    [(1, -1/sqrt(3)), (1, 1/sqrt(3))],    # 2 ściana
-    [(1/sqrt(3), 1), (-1/sqrt(3), 1)],    # 3 ściana
-    [(-1, 1/sqrt(3)), (-1, -1/sqrt(3))],  # 4 ściana
-]
-
-N = [
-    lambda ksi, mu : 0.25 * (1 - ksi) * (1 - mu),
-    lambda ksi, mu : 0.25 * (1 + ksi) * (1 - mu),
-    lambda ksi, mu : 0.25 * (1 + ksi) * (1 + mu),
-    lambda ksi, mu : 0.25 * (1 - ksi) * (1 + mu),
-]
-
-
-N_SCHEMA_2W = np.zeros((4, 4))
-N_SCHEMA_3W = np.zeros((9, 4))
-
-WEIGHT_SCHEMA_2W = np.array(list(itertools.product(SCHEMA[0][0], SCHEMA[0][0])))
-WEIGHT_SCHEMA_3W = np.array(list(itertools.product(SCHEMA[1][0], SCHEMA[1][0])))
-
-for i, (ksi, mu) in enumerate(list(itertools.product(SCHEMA[0][1], SCHEMA[0][1]))):
-    for j, n in enumerate(N):
-        N_SCHEMA_2W[i][j] = n(ksi, mu)
-
-
-for i, (ksi, mu) in enumerate(list(itertools.product(SCHEMA[1][1], SCHEMA[1][1]))):
-    for j, n in enumerate(N):
-        N_SCHEMA_3W[i][j] = n(ksi, mu)
-
-
-N_SCHEMA_BC_2W = np.zeros((4, 2, 4))
-
-for i, wall in enumerate(SCHEMA_BC_2W):
-    for j, point in enumerate(wall):
-        if i == len(SCHEMA_BC_2W) - 1:
-            N_SCHEMA_BC_2W[i, j, i] = N[i](*point)
-            N_SCHEMA_BC_2W[i, j, 0] = N[0](*point)
-        else:
-            N_SCHEMA_BC_2W[i, j, i] = N[i](*point)
-            N_SCHEMA_BC_2W[i, j, i + 1] = N[i + 1](*point)
-
-
-def integral_gauss(f, N):
+def gauss_integration(f, N):
     n_vars = len(signature(f).parameters)
     result = 0
 
@@ -77,4 +34,63 @@ def integral_gauss(f, N):
     return result
 
 
+a = 1/sqrt(3)
+b = sqrt(3/5)
 
+SCHEMA_BC_2W = [
+    [(-a, -1), (a, -1)],      
+    [(1, -a), (1, a)],    
+    [(a, 1), (-a, 1)],    
+    [(-1, a), (-1, -a)], 
+]
+
+SCHEMA_BC_3W = [
+    [(-b, -1), (0, -1), (b, -1)],
+    [(1, -b), (1, 0), (1, b)],
+    [(b, 1), (0, 1), (-b, 1)],
+    [(-1, b), (-1, 0), (-1, -b)],
+]
+
+
+N = [
+    lambda ksi, mu : 0.25 * (1 - ksi) * (1 - mu),
+    lambda ksi, mu : 0.25 * (1 + ksi) * (1 - mu),
+    lambda ksi, mu : 0.25 * (1 + ksi) * (1 + mu),
+    lambda ksi, mu : 0.25 * (1 - ksi) * (1 + mu),
+]
+
+def n_schema_bc_init(schema_bc):
+    n_schema_bc = np.zeros((4, len(schema_bc[0]), 4))
+    for i, wall in enumerate(schema_bc):
+        for j, point in enumerate(wall):
+            if i == len(SCHEMA_BC_2W) - 1:
+                n_schema_bc[i, j, i] = N[i](*point)
+                n_schema_bc[i, j, 0] = N[0](*point)
+            else:
+                n_schema_bc[i, j, i] = N[i](*point)
+                n_schema_bc[i, j, i + 1] = N[i + 1](*point)
+    return n_schema_bc
+
+N_SCHEMA_BC = [
+    n_schema_bc_init(SCHEMA_BC_2W),
+    n_schema_bc_init(SCHEMA_BC_3W),
+]
+
+
+N_SCHEMA_2W = np.zeros((4, 4))
+N_SCHEMA_3W = np.zeros((9, 4))
+
+for i, (ksi, mu) in enumerate(list(itertools.product(SCHEMA[0][1], SCHEMA[0][1]))):
+    for j, n in enumerate(N):
+        N_SCHEMA_2W[i][j] = n(ksi, mu)
+
+
+for i, (ksi, mu) in enumerate(list(itertools.product(SCHEMA[1][1], SCHEMA[1][1]))):
+    for j, n in enumerate(N):
+        N_SCHEMA_3W[i][j] = n(ksi, mu)
+
+
+N_SCHEMA = [
+    N_SCHEMA_2W,
+    N_SCHEMA_3W,
+]

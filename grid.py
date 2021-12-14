@@ -1,105 +1,37 @@
-from jacob import element4_2D
-from integration import *
-from globals import *
+from jacob import J_matrix, J_matrix_all, H_matrix, H_matrix_BC, P_vector, C_matrix
+from globals import SCHEMA_N
 import numpy as np
 import itertools
 
 np.set_printoptions(linewidth=200)
 
 
-def trunc(values, decs=0):
-    return np.trunc(values*10**decs)/(10**decs)
-
-
-def J_matrix_all(nodes):
-    jacobians = np.zeros((4, 2, 2))
-
-    for i, (xp, yp) in enumerate(zip(element4_2D.get('ksi2w'), element4_2D.get('mu2w'))):
-        x_ksi = x_mu = y_ksi = y_mu = 0
-        for node, n_ksi, n_mu in zip(nodes, xp, yp):
-            x_ksi += node.x * n_ksi
-            y_ksi += node.y * n_ksi
-            x_mu += node.x * n_mu
-            y_mu += node.y * n_mu
-        jacobians[i] = np.array([[x_ksi, y_ksi], [x_mu, y_mu]]).round(4)
-
-    return jacobians
-
-
-def J_matrix(nodes):
-    x_ksi = x_mu = y_ksi = y_mu = 0
-    for node, n_ksi, n_mu in zip(nodes, element4_2D.get('ksi2w')[0], element4_2D.get('mu2w')[0]):
-        x_ksi += node.x * n_ksi
-        y_ksi += node.y * n_ksi
-        x_mu += node.x * n_mu
-        y_mu += node.y * n_mu
-    #return np.array([x_ksi, y_ksi, x_mu, y_mu]).round(7)
-    return [[[round(x_ksi, 6), round(y_ksi, 6)], [round(x_mu, 6), round(y_mu, 6)]]] * 4
-
-
-def H_matrix(J): 
-    H_matrix = np.zeros((4, 4))
-    for nx, ny, j in zip(element4_2D.get('ksi2w'), element4_2D.get('mu2w'), J):
-        rj = np.linalg.inv(j)
-        dNdx = rj[0, 0] * np.array([nx]) + rj[0, 1] * np.array([nx])
-        dNdy = rj[1, 0] * np.array([ny]) + rj[1, 1] * np.array([ny])
-        H_matrix += (K * (dNdx.T @ dNdx + dNdy.T @ dNdy) * np.linalg.det(j)).round(3)
-    return H_matrix
-
-
-def H_matrix_BC(L, wall_id):
-    H_BC = np.zeros((4, 4)) 
-    for point in N_SCHEMA_BC_2W[wall_id]:
-        H_BC += (point * point[np.newaxis].T)
-    H_BC *= (ALFA * 0.05 * L)
-    return H_BC
-
-
-def P_vector(L, wall_id):
-    P = np.zeros((4, 1))
-    for point in N_SCHEMA_BC_2W[wall_id]:
-        print(point, point.shape)
-        P += point.reshape(4, 1)
-    P *= (T_AMBIENT * ALFA * 0.5 * L)
-    return P
-
-
-def C_matrix(J):
-    C_mat = np.zeros((4, 4))
-    for i, N in enumerate(trunc(N_SCHEMA_2W, 4)):
-        C_mat += N * N[np.newaxis].T
-    C_mat*= (RO * C * np.linalg.det(J))
-    return C_mat
-    
-
 class Node:
 
-    def __init__(self, x, y, t0, bc=0):
+    def __init__(self, x, y, t_start, bc=0):
         self.x = x
         self.y = y
         self.bc = bc
-        self.t0 = t0
+        self.t_start = t_start
 
     def __repr__(self):
-        return f"[{self.x: .3f}, {self.y: .3f}, BC = {self.bc}]" 
+        return f"Node data:\n\n[{self.x: .3f}, {self.y: .3f}, BC = {self.bc}, T = {self.t_start: .3f}]\n" 
 
 
 class Element:
 
-    def __init__(self, ids, jacobians=None, H_matrix=None, H_BC_matrices=None, H_BC_matrix=None, P_vectors=None, P_vector=None, C_matrix=None):
+    def __init__(self, ids, jacobians=None, H_matrix=None,  H_BC_matrix=None, P_vector=None, C_matrix=None):
         self.ids = ids 
+        
         self.jacobians = jacobians
         self.H_matrix = H_matrix
-        self.H_BC_matrices = H_BC_matrices
         self.H_BC_matrix = H_BC_matrix
-        self.P_vectors = P_vectors
         self.P_vector = P_vector
         self.C_matrix = C_matrix
 
 
     def __repr__(self):
-        return 30 * "=" + f"\n\n{self.ids}\n\nJ matrix:\n\n{self.jacobians}\n\nH matrix:\n\n{self.H_matrix}\n\n \
-H_BC_matrix\n\n{self.H_BC_matrix}\n\P_vector\n\n{self.P_vector}\n\nC_matrix\n\n{self.C_matrix}\n\n"
+        return f"Element data:\n\n{self.ids}\n\nJ matrix:\n\n{self.jacobians}\n\nH matrix:\n\n{self.H_matrix}\n\nH_BC_matrix\n\n{self.H_BC_matrix}\n\nP_vector\n\n{self.P_vector}\n\nC_matrix\n\n{self.C_matrix}\n"
 
 
     def __len__(self):
@@ -108,7 +40,7 @@ H_BC_matrix\n\n{self.H_BC_matrix}\n\P_vector\n\n{self.P_vector}\n\nC_matrix\n\n{
   
 class Grid:
 
-    def __init__(self, height, breadth, num_nodes_height, num_nodes_breadth, temp_start):
+    def __init__(self, height, breadth, num_nodes_height, num_nodes_breadth, t_start):
         self.h = height
         self.b = breadth
         self.n_b = num_nodes_breadth
@@ -117,7 +49,8 @@ class Grid:
         self.l_h = self.h / (self.n_h - 1)   # Szerokosc elementu
         self.n_n = self.n_h * self.n_b
         self.n_e = (self.n_h - 1) * (self.n_b - 1)
-        self.t0 = temp_start
+        self.t_start = t_start
+
         self.nodes = self.create_nodes()
         self.elements = self.create_elements()
   
@@ -139,7 +72,7 @@ class Grid:
 
 
     def create_nodes(self):
-        nodes = [Node(j * (self.b / (self.n_b - 1)), i * (self.h / (self.n_h - 1)), self.t0) for i in range(self.n_h) for j in range(self.n_b)]
+        nodes = [Node(j * (self.b / (self.n_b - 1)), i * (self.h / (self.n_h - 1)), self.t_start) for i in range(self.n_h) for j in range(self.n_b)]
         self.set_boundary_condition(nodes)
         return nodes
 
@@ -150,12 +83,12 @@ class Grid:
 
     def calculate_jacobians(self):
         for element in self.elements:
-            element.jacobians = J_matrix_all([self.nodes[id] for id in element.ids])
+            element.jacobians = J_matrix_all([self.nodes[id] for id in element.ids], SCHEMA_N)
 
 
     def calculate_H_matrices(self):
         for element in self.elements:
-            element.H_matrix = H_matrix(element.jacobians)
+            element.H_matrix = H_matrix(element.jacobians[0], SCHEMA_N)
 
 
     def is_boundary_condition(self, element, wall_id):
@@ -178,14 +111,12 @@ class Grid:
             for wall_id in range(len(element)):
                 if self.is_boundary_condition(element, wall_id):
                     if wall_id in(0, 2):
-                        H_BC_matrices[wall_id] = H_matrix_BC(self.l_b, wall_id)
-                        P_vectors[wall_id] = P_vector(self.l_b, wall_id)
+                        H_BC_matrices[wall_id] = H_matrix_BC(self.l_b, wall_id, SCHEMA_N)
+                        P_vectors[wall_id] = P_vector(self.l_b, wall_id, SCHEMA_N)
                     elif wall_id in (1, 3):
-                        H_BC_matrices[wall_id] = H_matrix_BC(self.l_h, wall_id)
-                        P_vectors[wall_id] = P_vector(self.l_h, wall_id)
-            element.H_BC_matrices = H_BC_matrices
+                        H_BC_matrices[wall_id] = H_matrix_BC(self.l_h, wall_id, SCHEMA_N)
+                        P_vectors[wall_id] = P_vector(self.l_h, wall_id, SCHEMA_N)
             element.H_BC_matrix = H_BC_matrices.sum(axis=0)
-            element.P_vectors = P_vectors
             element.P_vector = P_vectors.sum(axis=0)
 
 
@@ -224,7 +155,7 @@ class Grid:
 
     def calculate_C_matrices(self):
         for element in self.elements:
-            element.C_matrix = C_matrix(element.jacobians[0])
+            element.C_matrix = C_matrix(element.jacobians[0], SCHEMA_N)
 
    
     def format_elements(self):
@@ -235,17 +166,14 @@ class Grid:
         H = self.H_global
         P = self.P_global
         C = self.C_global
-        T0 = np.full(P.shape, self.t0)
+        T0 = np.full(P.shape, self.t_start)
 
         X = H + C/dT
         Y = C/dT
 
-        for _ in range(n_steps):
+        for i in range(n_steps):
             T0 = np.linalg.inv(X) @ (Y @ T0 + P)
-            # H = X
-            # P += Y @ T0
-            
-        return (T0, T0.min(), T0.max())
+            yield (T0, T0.min(), T0.max(), i + 1)
 
 
     def __repr__(self):
