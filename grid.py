@@ -1,9 +1,14 @@
 from jacob import J_matrix, J_matrix_all, H_matrix, H_matrix_BC, P_vector, C_matrix
-from globals import SCHEMA_N
+from constants import SCHEMA_N
 import numpy as np
 import itertools
+import math
 
 np.set_printoptions(linewidth=200)
+
+
+class GridException(Exception):
+    pass
 
 
 class Node:
@@ -40,20 +45,21 @@ class Element:
   
 class Grid:
 
-    def __init__(self, height, breadth, num_nodes_height, num_nodes_breadth, t_start):
-        self.h = height
-        self.b = breadth
-        self.n_b = num_nodes_breadth
-        self.n_h = num_nodes_height
-        self.l_b = self.b / (self.n_b - 1)   # Wysokosc elementu
-        self.l_h = self.h / (self.n_h - 1)   # Szerokosc elementu
-        self.n_n = self.n_h * self.n_b
-        self.n_e = (self.n_h - 1) * (self.n_b - 1)
-        self.t_start = t_start
+    def __init__(self, height=None, breadth=None, num_nodes_height=None, num_nodes_breadth=None, t_start=None, from_file=False):
+        if not all([height, breadth, num_nodes_height, num_nodes_breadth, t_start]):
+            if not from_file:
+                raise GridException("Cannot create grid object.")
+        else:
+            self.h = height
+            self.b = breadth
+            self.n_b = num_nodes_breadth
+            self.n_h = num_nodes_height
+            self.t_start = t_start
+            self.nodes = self.create_nodes()
+            self.elements = self.create_elements()
+        
 
-        self.nodes = self.create_nodes()
-        self.elements = self.create_elements()
-  
+    def calculate(self):
         self.calculate_jacobians()
         self.calculate_H_matrices()
         self.apply_boundary_conditions()
@@ -110,12 +116,20 @@ class Grid:
             P_vectors = np.zeros((4, 4, 1))
             for wall_id in range(len(element)):
                 if self.is_boundary_condition(element, wall_id):
-                    if wall_id in(0, 2):
-                        H_BC_matrices[wall_id] = H_matrix_BC(self.l_b, wall_id, SCHEMA_N)
-                        P_vectors[wall_id] = P_vector(self.l_b, wall_id, SCHEMA_N)
-                    elif wall_id in (1, 3):
-                        H_BC_matrices[wall_id] = H_matrix_BC(self.l_h, wall_id, SCHEMA_N)
-                        P_vectors[wall_id] = P_vector(self.l_h, wall_id, SCHEMA_N)
+                    x1 = self.nodes[element.ids[wall_id]].x
+                    y1 = self.nodes[element.ids[wall_id]].y
+
+                    if wall_id == 3:
+                        x2 = self.nodes[element.ids[0]].x
+                        y2 = self.nodes[element.ids[0]].y
+                    else:
+                        x2 = self.nodes[element.ids[wall_id + 1]].x
+                        y2 = self.nodes[element.ids[wall_id + 1]].y
+
+                    L = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+                    H_BC_matrices[wall_id] = H_matrix_BC(L, wall_id, SCHEMA_N)
+                    P_vectors[wall_id] = P_vector(L, wall_id, SCHEMA_N)
+                    
             element.H_BC_matrix = H_BC_matrices.sum(axis=0)
             element.P_vector = P_vectors.sum(axis=0)
 
@@ -126,7 +140,7 @@ class Grid:
 
 
     def aggregate_H(self):
-        aggregated = np.zeros((self.n_n, self.n_n))
+        aggregated = np.zeros((len(self.nodes), len(self.nodes)))
         for element in self.elements:
             local_i = list(itertools.product([0, 1, 2, 3], [0, 1, 2, 3]))
             global_i = list(itertools.product(element.ids, element.ids))
@@ -136,7 +150,7 @@ class Grid:
 
 
     def aggregate_P(self):
-        aggregated = np.zeros((self.n_n, 1))
+        aggregated = np.zeros((len(self.nodes), 1))
         for element in self.elements:
             for l_i, g_i in zip(range(4), element.ids):
                 aggregated[g_i] += element.P_vector[l_i]
@@ -144,7 +158,7 @@ class Grid:
 
 
     def aggregate_C(self):
-        aggregated = np.zeros((self.n_n, self.n_n))
+        aggregated = np.zeros((len(self.nodes), len(self.nodes)))
         for element in self.elements:
             local_i = list(itertools.product([0, 1, 2, 3], [0, 1, 2, 3]))
             global_i = list(itertools.product(element.ids, element.ids))
@@ -173,7 +187,26 @@ class Grid:
 
         for i in range(n_steps):
             T0 = np.linalg.inv(X) @ (Y @ T0 + P)
-            yield (T0, T0.min(), T0.max(), i + 1)
+            yield (T0.min(), T0.max(), i + 1)
+
+
+    @classmethod
+    def from_file(self, nodes, elements, bc, t_start):
+        grid = Grid(from_file=True)
+        grid.nodes = [Node(node[0], node[1], t_start) for node in nodes]
+        grid.elements = [Element(ids) for ids in elements]
+        grid.t_start = t_start
+        for bc_i in bc:
+            grid.nodes[bc_i].bc = 1
+        grid.calculate()
+        return grid
+        
+        
+    @classmethod
+    def from_data(self, height, breadth, num_nodes_height, num_nodes_breadth, t_start):
+        grid = Grid(height, breadth, num_nodes_height, num_nodes_breadth, t_start)
+        grid.calculate()
+        return grid
 
 
     def __repr__(self):

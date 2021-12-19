@@ -1,5 +1,5 @@
 from integration import SCHEMA, N_SCHEMA_BC, N_SCHEMA
-from globals import *
+from constants import *
 import numpy as np
 
 
@@ -125,7 +125,6 @@ def C_matrix(J, N):
         C_mat +=  weight[0] * weight[1] * N * N[np.newaxis].T
     C_mat*= (RO * C * np.linalg.det(J))
     return C_mat
-
 
 
 
