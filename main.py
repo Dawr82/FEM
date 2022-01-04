@@ -6,6 +6,12 @@ import sys
 from pathlib import Path
 
 
+def main1():
+    grid = Grid.from_data(constants.H, constants.B, constants.N_H, constants.N_B, constants.T_START)
+    for min, max, i in grid.calculate_temperatures(constants.TM_STEP, constants.N_STEPS):
+        print(f"After {i * constants.TM_STEP}s: Tmin={min: .3f} Tmax={max: .3f}")
+
+
 def main():
     try:
         schema = int(sys.argv[1])
@@ -15,7 +21,7 @@ def main():
             sys.exit()
         if schema in (2, 3):
             SCHEMA_N = schema - 2
-            print(f"Setting intergation schema... SCHEMA = {SCHEMA_N + 2}")
+            print(f"Setting intergation schema... SCHEMA = {schema}")
         else:
             print("Invalid schema. Only schemas for 2 and 3 integration points are supported for now. Using default schema (N = 2)")
     except IndexError:
@@ -55,4 +61,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    #main()
+    main1()

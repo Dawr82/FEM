@@ -1,8 +1,17 @@
-from jacob import J_matrix, J_matrix_all, H_matrix, H_matrix_BC, P_vector, C_matrix
-from constants import SCHEMA_N
-import numpy as np
 import itertools
 import math
+
+import numpy as np
+
+from constants import SCHEMA_N
+from matrices import(
+    J_matrix_all, 
+    H_matrix, 
+    H_matrix_BC, 
+    P_vector, 
+    C_matrix
+)
+
 
 np.set_printoptions(linewidth=200)
 
@@ -27,7 +36,6 @@ class Element:
 
     def __init__(self, ids, jacobians=None, H_matrix=None,  H_BC_matrix=None, P_vector=None, C_matrix=None):
         self.ids = ids 
-        
         self.jacobians = jacobians
         self.H_matrix = H_matrix
         self.H_BC_matrix = H_BC_matrix
@@ -62,13 +70,12 @@ class Grid:
     def calculate(self):
         self.calculate_jacobians()
         self.calculate_H_matrices()
-        self.apply_boundary_conditions()
-        self.update_H_matrices()
+        self.apply_boundary_conditions()  # P oraz Hbc
+        self.update_H_matrices()          # H += Hbc
         self.calculate_C_matrices()
 
-        self.H_global = self.aggregate_H()
+        self.H_global, self.C_global = self.aggregate_H_C()
         self.P_global = self.aggregate_P()
-        self.C_global = self.aggregate_C()
 
 
     def set_boundary_condition(self, nodes):
@@ -139,14 +146,16 @@ class Grid:
             element.H_matrix += element.H_BC_matrix
 
 
-    def aggregate_H(self):
-        aggregated = np.zeros((len(self.nodes), len(self.nodes)))
+    def aggregate_H_C(self):
+        aggregated_C = np.zeros((len(self.nodes), len(self.nodes)))
+        aggregated_H = np.zeros((len(self.nodes), len(self.nodes)))
         for element in self.elements:
             local_i = list(itertools.product([0, 1, 2, 3], [0, 1, 2, 3]))
             global_i = list(itertools.product(element.ids, element.ids))
             for (l_i, l_j), (g_i, g_j) in zip(local_i, global_i):
-                aggregated[g_i, g_j] += element.H_matrix[l_i, l_j]
-        return aggregated
+                aggregated_C[g_i, g_j] += element.C_matrix[l_i, l_j]
+                aggregated_H[g_i, g_j] += element.H_matrix[l_i, l_j]
+        return (aggregated_H, aggregated_C)
 
 
     def aggregate_P(self):
@@ -157,18 +166,8 @@ class Grid:
         return aggregated
 
 
-    def aggregate_C(self):
-        aggregated = np.zeros((len(self.nodes), len(self.nodes)))
-        for element in self.elements:
-            local_i = list(itertools.product([0, 1, 2, 3], [0, 1, 2, 3]))
-            global_i = list(itertools.product(element.ids, element.ids))
-            for (l_i, l_j), (g_i, g_j) in zip(local_i, global_i):
-                aggregated[g_i, g_j] += element.C_matrix[l_i, l_j]
-        return aggregated
-
-
     def calculate_C_matrices(self):
-        for element in self.elements:
+        for i, element in enumerate(self.elements):
             element.C_matrix = C_matrix(element.jacobians[0], SCHEMA_N)
 
    
