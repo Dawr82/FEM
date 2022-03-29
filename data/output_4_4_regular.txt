@@ -1,0 +1,10 @@
+After 50.0s: Tmin= 110.026 Tmax= 365.773
+After 100.0s: Tmin= 168.807 Tmax= 502.551
+After 150.0s: Tmin= 242.760 Tmax= 587.341
+After 200.0s: Tmin= 318.574 Tmax= 649.366
+After 250.0s: Tmin= 391.223 Tmax= 700.058
+After 300.0s: Tmin= 459.019 Tmax= 744.065
+After 350.0s: Tmin= 521.588 Tmax= 783.398
+After 400.0s: Tmin= 579.060 Tmax= 819.023
+After 450.0s: Tmin= 631.741 Tmax= 851.479
+After 500.0s: Tmin= 679.989 Tmax= 881.124

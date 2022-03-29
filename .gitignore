@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 # 
-*.txt
 tests.py
+.vscode
