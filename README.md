@@ -15,3 +15,5 @@ The source code includes:
 * functions that calculate necessary matrices and use the data structures mentioned above
 
 This project was created for university course purposes.
+
+There are sample input files (Solidworks) included in /data directory.
