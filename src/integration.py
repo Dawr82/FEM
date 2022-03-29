@@ -1,10 +1,12 @@
 from math import sqrt
 from inspect import signature
-import numpy as np
 import itertools
+
+import numpy as np
 
 
 class IntegrationError(Exception):
+    """Raised where integration-related errors occur."""
     pass
 
 
@@ -12,14 +14,14 @@ a = 1/sqrt(3)
 b = sqrt(0.6)
 
 
-# Kwadratura Gaussa (2 i 3 punktowe schematy)
+# Gaussian Quadrature (2 and 3 point schemas)
 SCHEMA = [
     [[1, 1],[-a, a]],                                                       
     [[5/9, 8/9, 5/9],[-b, 0, b]],                                             
 ]
 
 
-# Calkowanie numeryczne Gaussa (przekazac funkcję (1 lub 2 argumenty) oraz schemat calkowania)
+# Gaussian integration (for 2 and 3 point schemas)
 def gauss_integration(f, N):
     n_vars = len(signature(f).parameters)
     result = 0
@@ -42,7 +44,7 @@ def gauss_integration(f, N):
 
 #=======================================================================================
 
-# Funkcje ksztaltu dla elementu 2D 4 wezlowego
+# Shape functions for 2D 4-node element.
 N = [
     lambda ksi, mu : 0.25 * (1 - ksi) * (1 - mu),
     lambda ksi, mu : 0.25 * (1 + ksi) * (1 - mu),
@@ -50,7 +52,7 @@ N = [
     lambda ksi, mu : 0.25 * (1 - ksi) * (1 + mu),
 ]
 
-# Wspolrzedne punktow na scianach elementu w 2-punktowym schemacie calkowania
+# Point coordinates at element's walls - 2-point Gaussian integration
 SCHEMA_2P_BC = np.array([
     [(-a, -1), (a, -1)],      
     [(1, -a), (1, a)],    
@@ -58,7 +60,7 @@ SCHEMA_2P_BC = np.array([
     [(-1, a), (-1, -a)], 
 ])
 
-# Wspolrzedne punktow na scianach elementu w 3-punktowym schemacie calkowania
+# Point coordinates at element's walls - 3-point Gaussian integration
 SCHEMA_3P_BC = np.array([
     [(-b, -1), (0, -1), (b, -1)],
     [(1, -b), (1, 0), (1, b)],
@@ -67,6 +69,7 @@ SCHEMA_3P_BC = np.array([
 ])
 
 
+# Helper function used to set up shape function vectors.
 def n_schema_bc_init(schema_bc):
     n_schema_bc = np.zeros((4, len(schema_bc[0]), 4))
     for i, wall in enumerate(schema_bc):
@@ -80,8 +83,7 @@ def n_schema_bc_init(schema_bc):
     return n_schema_bc
 
 
-# Wektory wartosci wszystkich funkcji ksztaltu w kazdym punkcie na kazdej scianie (2 i 3 punktowy schemat calkowania)
-# Do liczenia macierzy Hbc oraz wektora P.
+# Shape function values at each integration point of all element's walls.
 N_BC = [
     n_schema_bc_init(SCHEMA_2P_BC),
     n_schema_bc_init(SCHEMA_3P_BC),
@@ -96,10 +98,8 @@ def n_schema_el_init(schema_el):
     return n_schema_el
 
 
-# Wartosci funkcji ksztaltu w punktach calkowania 
-# Do liczenia macierzy C.
+# Shape function values at integration points of an element (inside the element).
 N_EL = [
     n_schema_el_init(SCHEMA[0][1]),
     n_schema_el_init(SCHEMA[1][1]),
 ]
-

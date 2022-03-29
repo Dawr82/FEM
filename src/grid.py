@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 
-from constants import SCHEMA_N
+from param import SCHEMA_N
 from matrices import(
     J_matrix_all, 
     H_matrix, 
@@ -17,10 +17,13 @@ np.set_printoptions(linewidth=200)
 
 
 class GridException(Exception):
+    """Raised by Grid class methods to indicate grid-related issues."""
     pass
 
 
 class Node:
+
+    """Represent node (point) of a grid."""
 
     def __init__(self, x, y, t_start, bc=0):
         self.x = x
@@ -33,6 +36,8 @@ class Node:
 
 
 class Element:
+
+    """Represent element (quadrangle) of a grid."""
 
     def __init__(self, ids, jacobians=None, H_matrix=None,  H_BC_matrix=None, P_vector=None, C_matrix=None):
         self.ids = ids 
@@ -53,6 +58,23 @@ class Element:
   
 class Grid:
 
+    """
+       Represents FEM grid itself.
+       This class includes all necessary methods for initializing the grid,
+       calculating various matrices associated with it and finally, conducting a simulation.
+
+       Grid object can be initialized in two ways:
+       - by giving it actual node, element and bc (boundary condition) lists
+         this is used when grid parameters are read from file.
+       - by giving it height and breadth of the grid
+         and the amount of nodes per height and breadth.
+        
+       __init__ method should be only used by from_file and from_data methods 
+       (consider it "private")
+       These methods should be called by the user of this class to initialize grid in one
+       of the ways described above.
+    """
+
     def __init__(self, height=None, breadth=None, num_nodes_height=None, num_nodes_breadth=None, t_start=None, from_file=False):
         if not all([height, breadth, num_nodes_height, num_nodes_breadth, t_start]):
             if not from_file:
@@ -70,7 +92,7 @@ class Grid:
     def calculate(self):
         self.calculate_jacobians()
         self.calculate_H_matrices()
-        self.apply_boundary_conditions()  # P oraz Hbc
+        self.apply_boundary_conditions()  # P and Hbc
         self.update_H_matrices()          # H += Hbc
         self.calculate_C_matrices()
 
@@ -211,7 +233,3 @@ class Grid:
     def __repr__(self):
         return 30 * "=" + f"""\nPrinting info about this grid\n\nNodes:\n{str(self.nodes)}\n\nElements:\n{self.format_elements()}\n\n \
         H global:\n{self.H_global.round(3)}\n\nP global:\n{self.P_global.round(3)}\n\nC global:\n{self.C_global.round(3)}\n\n""" + 30 * "=" 
-
-
-
-

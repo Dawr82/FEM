@@ -1,5 +1,7 @@
 class GridDataParser:
 
+    """Class whose objects parse and store grid-related data."""
+
     def __init__(self, filename, parse=True):
         self.filename = filename
         if parse:
